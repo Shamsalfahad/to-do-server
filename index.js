@@ -1,0 +1,112 @@
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const express = require('express')
+const app = express()
+const cors = require('cors');
+
+require('dotenv').config()
+const port = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0-shard-00-00.up5jq.mongodb.net:27017,cluster0-shard-00-01.up5jq.mongodb.net:27017,cluster0-shard-00-02.up5jq.mongodb.net:27017/?ssl=true&replicaSet=atlas-w5x22v-shard-0&authSource=admin&retryWrites=true&w=majority`;
+
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+
+async function run() {
+    try {
+        await client.connect();
+        let taskCollectiondb = client.db("todo").collection("task");
+
+        app.post('/tasks', async (req, res) => {
+            let task = req.body;
+            let result = await taskCollectiondb.insertOne(task);
+            res.send(result);
+        });
+
+        app.get('/tasks/:role', async (req, res) => {
+            let role = req.params.role;
+            console.log(role);
+            if (role = "complete") {
+                let query = { role: role }
+                let user = await taskCollectiondb.find(query).toArray();
+                res.send(user);
+
+            }
+            else {
+                if (role = "do") {
+                    let query = { role: "do" }
+                    let user = await taskCollectiondb.find(query).toArray();
+                    res.send(user);
+                }
+            }
+        });
+
+        app.get('/todo/:role', async (req, res) => {
+            let role = req.params.role;
+            console.log(role);
+            if (role = "do") {
+                let query = { role: "do" }
+                let user = await taskCollectiondb.find(query).toArray();
+                res.send(user);
+            }
+        });
+
+        // app.get('/tasks', async (req, res) => {
+        //     let user = await taskCollectiondb.find().toArray();
+        //     res.send(user);
+        // });
+
+        app.delete('/tasks/:id', async (req, res) => {
+            let id = req.params.id;
+            let query = { _id: ObjectId(id) };
+            let task = await taskCollectiondb.deleteOne(query);
+            res.send(task);
+        });
+        app.put('/todo/:id', async (req, res) => {
+            let id = req.params.id;
+            let todo = req.body;
+            console.log(todo);
+            let updateTodo = {
+                $set: {
+                    name: todo.name,
+                    description: todo.description
+                }
+            }
+            let query = { _id: ObjectId(id) };
+            let options = { upsert: true };
+            let result = await taskCollectiondb.updateOne(query, updateTodo, options);
+            res.send(result);
+        })
+
+        app.put('/complete/:id', async (req, res) => {
+            let id = req.params.id;
+            // let todo = req.body;
+            // console.log(todo);
+            let updateTodo = {
+                $set: {
+                    role: "complete"
+                }
+            }
+            let query = { _id: ObjectId(id) };
+            let options = { upsert: true };
+            let result = await taskCollectiondb.updateOne(query, updateTodo, options);
+            res.send(result);
+        })
+    }
+
+    finally {
+
+    }
+
+}
+run().catch(console.dir);
+
+app.get('/', (req, res) => {
+    res.send('Task Are Ready!')
+})
+
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`)
+})
